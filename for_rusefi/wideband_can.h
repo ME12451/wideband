@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #define RUSEFI_WIDEBAND_VERSION (0xA0)
 
 // ascii "rus"
@@ -78,6 +80,7 @@ enum class SensorType : uint8_t {
     LSU42 = 1,
     LSUADV = 2,
     LSU49_FAE = 3,
+    LSU49_RTRIM_SW = 4, // Bosch LSU4.9 with software connector trim resistor
 };
 
 struct StandardData

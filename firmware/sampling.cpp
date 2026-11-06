@@ -35,7 +35,11 @@ float Sampler::GetPumpNominalCurrent() const
     // Effective resistance with the gain is 619 ohms
     // 1000 is to convert to milliamperes
     constexpr float ratio = -1000 / (PUMP_CURRENT_SENSE_GAIN * LSU_SENSE_R);
-    return pumpCurrentSenseVoltage * ratio;
+    float current = pumpCurrentSenseVoltage * ratio;
+#if defined(WB_CAN_BITRATE_CONFIG) && WB_CAN_BITRATE_CONFIG
+    current *= GetPumpCalibrationGain();
+#endif
+    return current;
 }
 
 #ifdef HEATER_INPUT_DIVIDER
@@ -60,6 +64,7 @@ float Sampler::GetSensorTemperature() const
     }
 
     switch (GetSensorType()) {
+        case SensorType::LSU49_RTRIM_SW:
         case SensorType::LSU49:
         case SensorType::LSU49_FAE:
             return interpolate2d(esr, lsu49TempBins, lsu49TempValues);

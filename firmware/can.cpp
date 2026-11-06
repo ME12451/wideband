@@ -1,6 +1,7 @@
 #include "hal.h"
 
 #include "can.h"
+#include "manager_service.h"
 
 #include "status.h"
 #include "can_helper.h"
@@ -111,6 +112,8 @@ void CanRxThread(void*)
             continue;
         }
 
+        if (ManagerRequest(frame)) { continue; }
+
         if (frame.DLC >= 2 && CAN_ID(frame) == WB_MSG_ECU_STATUS)
         {
             // This is status from ECU
@@ -187,18 +190,42 @@ void CanRxThread(void*)
             }
         }
 #endif
+#if defined(WB_CAN_BITRATE_CONFIG) && WB_CAN_BITRATE_CONFIG
+        else if (frame.RTR == CAN_RTR_DATA &&
+            ((CAN_ID(frame) == wbo::SetCalibrationId && frame.DLC == 4) ||
+             (CAN_ID(frame) == wbo::GetCalibrationId && frame.DLC == 1)) &&
+            frame.data8[0] == BoardGetHwId())
+        {
+            auto result = wbo::CalibrationResult::Read;
+            if (CAN_ID(frame) == wbo::SetCalibrationId) {
+                const uint16_t value = frame.data8[1] | (uint16_t(frame.data8[2]) << 8);
+                result = SetSoftwareCalibration(value, static_cast<SensorType>(frame.data8[3]));
+            }
+            const auto value = GetSoftwareCalibration();
+            CanTxTyped<wbo::CalibrationReply> reply(wbo::CalibrationReplyId, true);
+            reply.get().hwId = BoardGetHwId();
+            reply.get().centiohms = value;
+            reply.get().result = result;
+            reply.get().sensorType = GetSensorType();
+        }
+#endif
         // Set sensor type command?
         else if (CAN_ID(frame) == WB_MSG_SET_SENS_TYPE &&
             frame.DLC == 2 && frame.data8[0] == BoardGetHwId())
         {
             uint8_t type = frame.data8[1];
+#if defined(WB_CAN_BITRATE_CONFIG) && WB_CAN_BITRATE_CONFIG
+            if (frame.RTR == CAN_RTR_DATA && SetSensorType(static_cast<SensorType>(type))) {
+                SendAck();
+            }
+#else
             if ((type <= (uint8_t)SensorType::LSU49_FAE) &&
                 (type >= (uint8_t)SensorType::LSU49)) {
-                // TODO: check if HW supports this type of sensor
                 configuration->sensorType = (SensorType)type;
                 SetConfiguration();
                 SendAck();
             }
+#endif
         }
         else if (CAN_ID(frame) == WB_MSG_PING && frame.DLC == 1)
         {
@@ -270,8 +297,7 @@ void SendRusefiFormat(uint8_t ch)
         bool heaterClosedLoop = heater.IsRunningClosedLoop();
         frame.get().Valid = (heaterClosedLoop && lambdaValid) ? 0x01 : 0x00;
         // Sensor type flags
-        frame.get().Valid |= (GetSensorType() == SensorType::LSU49) ? 0x02 : 0x00;
-        frame.get().Valid |= (GetSensorType() == SensorType::LSU49_FAE) ? 0x04 : 0x00;
+        frame.get().Valid |= wbo::SensorTypeFlags(GetSensorType());
     }
 
     if (configuration->afr[ch].RusEfiTxDiag) {

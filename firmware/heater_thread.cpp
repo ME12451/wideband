@@ -86,6 +86,7 @@ static void HeaterThread(void*)
             case SensorType::LSUADV:
                 h.Configure(785, 300);
                 break;
+            case SensorType::LSU49_RTRIM_SW:
             case SensorType::LSU49:
             case SensorType::LSU49_FAE:
                 h.Configure(780, 300);

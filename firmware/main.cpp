@@ -2,6 +2,8 @@
 #include "hal.h"
 
 #include "can.h"
+#include "manager_service.h"
+extern void ManagerInit();
 #include "status.h"
 #include "heater_control.h"
 #include "pump_control.h"
@@ -36,61 +38,39 @@ int main() {
     InitPumpDac();
     StartHeaterControl();
     StartPumpControl();
-    InitAuxDac();
+    // F0 has no external analogue outputs.
 
 #if defined(TS_ENABLED) && TS_ENABLED != 0
     startTunerStudioConnectivity();
 #endif
 
+    ManagerInit();
     InitCan();
-    InitUart();
+    // CAN-only F0 manager build: no serial transport.
     InitIndication();
 
 #if (EGT_CHANNELS > 0)
     StartEgt();
 #endif
 
+    // F0-only manager indication. No extra thread; bounded 50 ms response.
+    unsigned tick=0;
     while(true)
     {
-#ifdef ADVANCED_INDICATION
-        /* NOP nap */
-        chThdSleepMilliseconds(1000);
-#else
-        /* TODO: show error for all AFR channels */
-        /* TODO: show EGT errors */
-        auto status = GetCurrentStatus(0);
-
-        if (status < Status::SensorDidntHeat)
-        {
-            // blue is off
-            palClearPad(LED_BLUE_PORT, LED_BLUE_PIN);
-
-            // Green is blinking
-            palTogglePad(LED_GREEN_PORT, LED_GREEN_PIN);
-
-            // Very slow blinking if heating not allowed
-            // Slow blink if closed loop, fast if not
-            chThdSleepMilliseconds(GetHeaterAllowed() != HeaterAllow::Allowed ? 2000 :
-                status == Status::RunningClosedLoop ? 700 : 50);
+        const auto status=GetCurrentStatus(0);
+        if(ManagerIdentifyActive()){
+            palWritePad(LED_BLUE_PORT,LED_BLUE_PIN,(tick/2)%2);
+            palWritePad(LED_GREEN_PORT,LED_GREEN_PIN,!((tick/2)%2));
+        }else{
+            const bool fault=status>=Status::FirstError&&status<=Status::LastError;
+            const unsigned period=GetHeaterAllowed()!=HeaterAllow::Allowed?40:status==Status::RunningClosedLoop?14:2;
+            palWritePad(LED_GREEN_PORT,LED_GREEN_PIN,!fault&&((tick/period)%2));
+            // Preserve counted error indication (300ms on/off, then 2s pause).
+            unsigned phase=tick%(12*static_cast<unsigned>(status)+40);
+            palWritePad(LED_BLUE_PORT,LED_BLUE_PIN,fault&&phase<12*static_cast<unsigned>(status)&&((phase/6)%2==0));
         }
-        else
-        {
-            // green is off
-            palClearPad(LED_GREEN_PORT, LED_GREEN_PIN);
-
-            // Blink out the error code
-            for (uint8_t i = 0; i < 2 * static_cast<uint8_t>(status); i++)
-            {
-                // Blue is blinking
-                palTogglePad(LED_BLUE_PORT, LED_BLUE_PIN);
-
-                // fast blink
-                chThdSleepMilliseconds(300);
-            }
-
-            chThdSleepMilliseconds(2000);
-        }
-#endif
+        tick++;
+        chThdSleepMilliseconds(50);
     }
 }
 

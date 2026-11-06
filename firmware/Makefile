@@ -147,6 +147,7 @@ CPPSRC = $(ALLCPPSRC) \
           $(WIDEBANDSRC) \
           shared/flash.cpp \
           shared/strap_pin.cpp \
+          manager_service.cpp \
           can.cpp \
           can_helper.cpp \
           status.cpp \
@@ -155,9 +156,6 @@ CPPSRC = $(ALLCPPSRC) \
           dac.cpp \
           pump_dac.cpp \
           pump_control.cpp \
-          max3185x.cpp \
-          uart.cpp \
-          auxout.cpp \
           indication.cpp \
           sampling_thread.cpp \
           heater_thread.cpp \

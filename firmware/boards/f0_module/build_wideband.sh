@@ -4,7 +4,11 @@ set -eo pipefail
 
 # first build the bootloader
 cd bootloader
-./build_bootloader.sh
+# Application stack/instrumentation flags must not leak into the established
+# selectable bootloader build. Keep its original 512-byte stack budgets.
+env USE_PROCESS_STACKSIZE=0x200 USE_EXCEPTIONS_STACKSIZE=0x200 \
+    USE_OPT='-Os -ggdb -fomit-frame-pointer -falign-functions=1 -fsingle-precision-constant' \
+    ./build_bootloader.sh
 
 # back out to the root
 cd ../../..

@@ -6,6 +6,7 @@
 #include "port_shared.h"
 #include "wideband_config.h"
 #include "../for_rusefi/wideband_can.h"
+#include "../for_rusefi/wideband_calibration.h"
 
 using namespace wbo;
 
@@ -67,6 +68,7 @@ public:
     // Configuration defaults
     void LoadDefaults()
     {
+        calibration = wbo::MakeCalibrationRecord(0);
         NoLongerUsed0 = 0;
         sensorType = BOARD_DEFAULT_SENSOR_TYPE;
 
@@ -137,6 +139,10 @@ public:
                 uint8_t AemNetIdOffset;
                 uint8_t pad[5];
             } egt[MAX_EGT_CHANNELS];
+
+            // Extension in former padding: keep the tag and all existing offsets.
+            // Old flash has no matching magic/complement and decodes to disabled.
+            wbo::CalibrationRecord calibration;
         } __attribute__((packed));
 
         // pad to 256 bytes including tag
@@ -164,3 +170,11 @@ SensorType GetSensorType();
 void SetupESRDriver(SensorType sensor);
 void ToggleESRDriver(SensorType sensor);
 int GetESRSupplyR();
+
+#if defined(WB_CAN_BITRATE_CONFIG) && WB_CAN_BITRATE_CONFIG
+uint16_t GetSoftwareCalibration();
+wbo::CalibrationResult SetSoftwareCalibration(uint16_t centiohms, SensorType type);
+bool SetSensorType(SensorType type);
+bool IsSensorCalibrationReady();
+float GetPumpCalibrationGain();
+#endif

@@ -73,6 +73,7 @@ static float GetPhiLsuAdv(float pumpCurrent)
 
 static float GetPhi(float pumpCurrent) {
     switch (GetSensorType()) {
+        case SensorType::LSU49_RTRIM_SW:
         case SensorType::LSU49:
         case SensorType::LSU49_FAE:
             return GetPhiLsu49(pumpCurrent);
@@ -87,6 +88,12 @@ static float GetPhi(float pumpCurrent) {
 
 float GetLambda(int ch)
 {
+#if defined(WB_CAN_BITRATE_CONFIG) && WB_CAN_BITRATE_CONFIG
+    // Never present a plausible lambda for software trim without its sensor value.
+    if (!IsSensorCalibrationReady()) {
+        return 0;
+    }
+#endif
     float pumpCurrent = GetSampler(ch).GetPumpNominalCurrent();
 
     // Lambda is reciprocal of phi
