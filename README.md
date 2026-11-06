@@ -21,3 +21,5 @@ Send extended data frame `0x0EF80000`, DLC 2, `[hardware ID, rate]` (rate 0 = 50
 The stable eight-byte record at `0x08007ff8` is independent of the application's Configuration version. Ordinary F0 config writes preserve it. A power loss during the shared config-page erase/write may lose settings and cause both parts to fall back to 500k. The application refuses bitrate writes unless the installed bootloader has the matching capability marker in its reserved vector word at 0x08000020. Initial migration requires SWD installation of both new bootloader and application; application-only CAN updates cannot replace a fixed-rate bootloader. Older firmware can erase the record and does not support this protocol.
 
 Run `python3 test/test_can_bitrate.py` (host g++ with UBSan) to test the real CAN selector and flash writer with a mocked config page, invalid/torn records, write failures and addressed response matching. Hardware CAN timing, reset/update behavior and power-loss recovery still need bench validation.
+
+Änderungshistorie dieser Firmwarevariante: [CHANGELOG.md](CHANGELOG.md).
